@@ -5,16 +5,24 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarActivity;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.DialogFragment;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDialogFragment;
+import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Toast;
 
+import com.flask.colorpicker.ColorPickerView;
+import com.flask.colorpicker.OnColorChangedListener;
+import com.flask.colorpicker.OnColorSelectedListener;
 import com.flask.colorpicker.builder.ColorPickerClickListener;
 import com.flask.colorpicker.builder.ColorPickerDialogBuilder;
-import com.flask.colorpicker.ColorPickerView;
-import com.flask.colorpicker.OnColorSelectedListener;
 
-public class SampleActivity extends ActionBarActivity {
+public class SampleActivity extends AppCompatActivity {
 	private View root;
 	private int currentBackgroundColor = 0xffffffff;
 
@@ -32,10 +40,17 @@ public class SampleActivity extends ActionBarActivity {
 
 				ColorPickerDialogBuilder
 						.with(context)
-						.setTitle("Choose color")
+						.setTitle(R.string.color_dialog_title)
 						.initialColor(currentBackgroundColor)
 						.wheelType(ColorPickerView.WHEEL_TYPE.FLOWER)
 						.density(12)
+						.setOnColorChangedListener(new OnColorChangedListener() {
+							@Override
+							public void onColorChanged(int selectedColor) {
+								// Handle on color change
+								Log.d("ColorPicker", "onColorChanged: 0x" + Integer.toHexString(selectedColor));
+							}
+						})
 						.setOnColorSelectedListener(new OnColorSelectedListener() {
 							@Override
 							public void onColorSelected(int selectedColor) {
@@ -68,9 +83,16 @@ public class SampleActivity extends ActionBarActivity {
 							}
 						})
 						.showColorEdit(true)
-						.setColorEditTextColor(getResources().getColor(android.R.color.holo_blue_bright))
+						.setColorEditTextColor(ContextCompat.getColor(SampleActivity.this, android.R.color.holo_blue_bright))
 						.build()
 						.show();
+			}
+		});
+		findViewById(R.id.btn_adapted_dialog).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				DialogFragment dialogFragment = new AdaptedDialogFragment();
+				dialogFragment.show(getSupportFragmentManager(), "adapted_dialog");
 			}
 		});
 		findViewById(R.id.btn_prefs).setOnClickListener(new View.OnClickListener() {
@@ -95,6 +117,13 @@ public class SampleActivity extends ActionBarActivity {
 				startActivity(intent);
 			}
 		});
+		findViewById(R.id.btn_fragment).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				final Intent intent = new Intent(SampleActivity.this, SampleActivity3.class);
+				startActivity(intent);
+			}
+		});
 	}
 
 	private void changeBackgroundColor(int selectedColor) {
@@ -104,5 +133,16 @@ public class SampleActivity extends ActionBarActivity {
 
 	private void toast(String text) {
 		Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+	}
+
+	public static class AdaptedDialogFragment extends AppCompatDialogFragment {
+		public AdaptedDialogFragment() {
+		}
+
+		@Nullable
+		@Override
+		public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+			return inflater.inflate(R.layout.fragment_adapted_dialog, container);
+		}
 	}
 }

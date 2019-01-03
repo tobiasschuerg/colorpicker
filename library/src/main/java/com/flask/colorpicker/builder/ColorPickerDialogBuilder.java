@@ -1,6 +1,6 @@
 package com.flask.colorpicker.builder;
 
-import android.support.v7.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Color;
@@ -14,8 +14,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import com.flask.colorpicker.ColorPickerView;
+import com.flask.colorpicker.OnColorChangedListener;
 import com.flask.colorpicker.OnColorSelectedListener;
 import com.flask.colorpicker.R;
+import com.flask.colorpicker.Utils;
 import com.flask.colorpicker.renderer.ColorWheelRenderer;
 import com.flask.colorpicker.slider.AlphaSlider;
 import com.flask.colorpicker.slider.LightnessSlider;
@@ -38,11 +40,18 @@ public class ColorPickerDialogBuilder {
 	private Integer[] initialColor = new Integer[]{null, null, null, null, null};
 
 	private ColorPickerDialogBuilder(Context context) {
-		builder = new AlertDialog.Builder(context);
+		this(context, 0);
+	}
+
+	private ColorPickerDialogBuilder(Context context, int theme) {
+		defaultMargin = getDimensionAsPx(context, R.dimen.default_slider_margin);
+		final int dialogMarginBetweenTitle = getDimensionAsPx(context, R.dimen.default_slider_margin_btw_title);
+
+		builder = new AlertDialog.Builder(context, theme);
 		pickerContainer = new LinearLayout(context);
 		pickerContainer.setOrientation(LinearLayout.VERTICAL);
 		pickerContainer.setGravity(Gravity.CENTER_HORIZONTAL);
-		defaultMargin = getDimensionAsPx(context, R.dimen.default_slider_margin);
+		pickerContainer.setPadding(defaultMargin, dialogMarginBetweenTitle, defaultMargin, defaultMargin);
 
 		LinearLayout.LayoutParams layoutParamsForColorPickerView = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0);
 		layoutParamsForColorPickerView.weight = 1;
@@ -57,8 +66,17 @@ public class ColorPickerDialogBuilder {
 		return new ColorPickerDialogBuilder(context);
 	}
 
+	public static ColorPickerDialogBuilder with(Context context, int theme) {
+		return new ColorPickerDialogBuilder(context, theme);
+	}
+
 	public ColorPickerDialogBuilder setTitle(String title) {
 		builder.setTitle(title);
+		return this;
+	}
+
+	public ColorPickerDialogBuilder setTitle(int titleId) {
+		builder.setTitle(titleId);
 		return this;
 	}
 
@@ -86,6 +104,11 @@ public class ColorPickerDialogBuilder {
 		return this;
 	}
 
+	public ColorPickerDialogBuilder setOnColorChangedListener(OnColorChangedListener onColorChangedListener) {
+		colorPickerView.addOnColorChangedListener(onColorChangedListener);
+		return this;
+	}
+
 	public ColorPickerDialogBuilder setOnColorSelectedListener(OnColorSelectedListener onColorSelectedListener) {
 		colorPickerView.addOnColorSelectedListener(onColorSelectedListener);
 		return this;
@@ -95,9 +118,17 @@ public class ColorPickerDialogBuilder {
 		builder.setPositiveButton(text, new DialogInterface.OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
-				int selectedColor = colorPickerView.getSelectedColor();
-				Integer[] allColors = colorPickerView.getAllColors();
-				onClickListener.onClick(dialog, selectedColor, allColors);
+				positiveButtonOnClick(dialog, onClickListener);
+			}
+		});
+		return this;
+	}
+
+	public ColorPickerDialogBuilder setPositiveButton(int textId, final ColorPickerClickListener onClickListener) {
+		builder.setPositiveButton(textId, new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				positiveButtonOnClick(dialog, onClickListener);
 			}
 		});
 		return this;
@@ -105,6 +136,11 @@ public class ColorPickerDialogBuilder {
 
 	public ColorPickerDialogBuilder setNegativeButton(CharSequence text, DialogInterface.OnClickListener onClickListener) {
 		builder.setNegativeButton(text, onClickListener);
+		return this;
+	}
+
+	public ColorPickerDialogBuilder setNegativeButton(int textId, DialogInterface.OnClickListener onClickListener) {
+		builder.setNegativeButton(textId, onClickListener);
 		return this;
 	}
 
@@ -168,7 +204,6 @@ public class ColorPickerDialogBuilder {
 
 		if (isLightnessSliderEnabled) {
 			LinearLayout.LayoutParams layoutParamsForLightnessBar = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, getDimensionAsPx(context, R.dimen.default_slider_height));
-			layoutParamsForLightnessBar.setMargins(defaultMargin, 0, defaultMargin, 0);
 			lightnessSlider = new LightnessSlider(context);
 			lightnessSlider.setLayoutParams(layoutParamsForLightnessBar);
 			pickerContainer.addView(lightnessSlider);
@@ -177,7 +212,6 @@ public class ColorPickerDialogBuilder {
 		}
 		if (isAlphaSliderEnabled) {
 			LinearLayout.LayoutParams layoutParamsForAlphaBar = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, getDimensionAsPx(context, R.dimen.default_slider_height));
-			layoutParamsForAlphaBar.setMargins(defaultMargin, 0, defaultMargin, 0);
 			alphaSlider = new AlphaSlider(context);
 			alphaSlider.setLayoutParams(layoutParamsForAlphaBar);
 			pickerContainer.addView(alphaSlider);
@@ -186,21 +220,18 @@ public class ColorPickerDialogBuilder {
 		}
 		if (isColorEditEnabled) {
 			LinearLayout.LayoutParams layoutParamsForColorEdit = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-			int padSide = getDimensionAsPx(context, R.dimen.default_padding_side);
-			layoutParamsForColorEdit.leftMargin = padSide;
-			layoutParamsForColorEdit.rightMargin = padSide;
 			colorEdit = (EditText) View.inflate(context, R.layout.picker_edit, null);
 			colorEdit.setFilters(new InputFilter[]{new InputFilter.AllCaps()});
 			colorEdit.setSingleLine();
 			colorEdit.setVisibility(View.GONE);
 
 			// limit number of characters to hexColors
-			int maxLength = 9;
+			int maxLength = isAlphaSliderEnabled ? 9 : 7;
 			colorEdit.setFilters(new InputFilter[]{new InputFilter.LengthFilter(maxLength)});
 
 			pickerContainer.addView(colorEdit, layoutParamsForColorEdit);
 
-			colorEdit.setText("#" + Integer.toHexString(getStartColor(initialColor)).toUpperCase());
+			colorEdit.setText(Utils.getHexString(getStartColor(initialColor), isAlphaSliderEnabled));
 			colorPickerView.setColorEdit(colorEdit);
 		}
 		if (isPreviewEnabled) {
@@ -246,5 +277,11 @@ public class ColorPickerDialogBuilder {
 
 	private static int getDimensionAsPx(Context context, int rid) {
 		return (int) (context.getResources().getDimension(rid) + .5f);
+	}
+
+	private void positiveButtonOnClick(DialogInterface dialog, ColorPickerClickListener onClickListener) {
+		int selectedColor = colorPickerView.getSelectedColor();
+		Integer[] allColors = colorPickerView.getAllColors();
+		onClickListener.onClick(dialog, selectedColor, allColors);
 	}
 }
